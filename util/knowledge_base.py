@@ -167,7 +167,11 @@ personality = {
     "farewells": ["Goodbye!", "Have a great day!", "Talk to you later!"]
 }
 
+def get_projects():
+    return projects
 
+def get_experience():
+    return experience
 
 def get_about_me():
     return about_me
