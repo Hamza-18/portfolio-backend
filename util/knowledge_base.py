@@ -69,7 +69,6 @@ projects = [
         ],
         "thumbnail": "assets/images/projects/object-detection.png",
         "technologies": ["Python", "YOLOv8", "Distributed Systems", "Load Balancing", "Auto-scaling"],
-        "githubUrl": "https://github.com/yourusername/object-detection-distributed",
         "demoUrl": "",
         "featured": True,
         "category": "Machine Learning"
@@ -83,7 +82,7 @@ projects = [
         ],
         "thumbnail": "assets/images/projects/ai-traffic.png",
         "technologies": ["Python", "Reinforcement Learning", "Q-Learning", "SUMO"],
-        "githubUrl": "https://github.com/yourusername/ai-traffic-control",
+        "githubUrl": "https://github.com/Hamza-18/AI-TrafficControl",
         "demoUrl": "",
         "featured": False,
         "category": "AI"
@@ -97,7 +96,7 @@ projects = [
         ],
         "thumbnail": "assets/images/projects/deepfake.png",
         "technologies": ["Python", "GANs", "Deep Learning", "Computer Vision"],
-        "githubUrl": "https://github.com/yourusername/deepfake-project",
+        "githubUrl": "https://github.com/Hamza-18/Ganimation_Variation",
         "demoUrl": "",
         "featured": False,
         "category": "AI"
@@ -112,7 +111,7 @@ projects = [
         ],
         "thumbnail": "assets/images/projects/cupshup.png",
         "technologies": ["Java", "Android Studio", "Firebase"],
-        "githubUrl": "https://github.com/yourusername/cupshup-rooftop-app",
+        "githubUrl": "https://github.com/Hamza-18/CupShupRooftop",
         "demoUrl": "",
         "featured": False,
         "category": "Mobile"
@@ -157,9 +156,8 @@ faqs = [
 ]
 contacts = {
     "email": "hamzabashir1022@gmail.com",
-    "linkedin": "https://www.linkedin.com/in/hamzabashir1022",
-    "github": "https://github.com/yourusername",
-    "portfolio": "https://yourportfolio.com"
+    "linkedin": "https://www.linkedin.com/in/hamza-bashir-3214a11ab/",
+    "github": "https://github.com/Hamza-18",
 }
 personality = {
     "tone": "friendly, professional, enthusiastic",
