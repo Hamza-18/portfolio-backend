@@ -1,3 +1,14 @@
 
-Flask
-flask-cors
+# Core dependencies for portfolio backend
+Flask>=2.0.0
+flask-cors>=4.0.0
+
+# RAG chatbot dependencies
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.0
+numpy>=1.21.0
+scikit-learn>=1.0.0
+
+# Utility dependencies
+python-dotenv>=0.19.0
+requests>=2.25.0
