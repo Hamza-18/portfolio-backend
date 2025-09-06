@@ -126,7 +126,8 @@ projects = [
         ],
         "thumbnail": "assets/images/projects/portfolio.png",
         "technologies": ["Angular", "Flask", "Render", "RAG Chat"],
-        "githubUrl": "https://github.com/Hamza-18/portfolio-backend"
+        "githubUrl": "https://github.com/Hamza-18/portfolio-backend",
+        "category": "Web Development"
     },
     {
         "id": 6,
@@ -138,7 +139,8 @@ projects = [
         ],
         "thumbnail": "assets/images/projects/hostel-management.png",
         "technologies": ["Java", "Java Swing", "MySQL"],
-        "githubUrl": "https://github.com/Hamza-18/book-and-bed-management-system"
+        "githubUrl": "https://github.com/Hamza-18/book-and-bed-management-system",
+        "category": "Desktop Application"
     }
 ]
 
