@@ -3,7 +3,7 @@ RAG Chatbot Engine
 This module implements a Retrieval-Augmented Generation chatbot using:
 - Rule-based response generation
 - FAISS for vector similarity search
-- Sentence Transformers for embedding generation
+- HuggingFace Inference API for embedding generation
 """
 
 import os
@@ -12,14 +12,151 @@ import pickle
 import logging
 from typing import List, Dict, Any, Optional
 import numpy as np
-from sentence_transformers import SentenceTransformer
+import requests
 import faiss
 import sys
 from util import knowledge_base
 
+# Load environment variables if dotenv is available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+class HuggingFaceEmbeddings:
+    """HuggingFace Inference API for embeddings using the official client"""
+    
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+        """Initialize HuggingFace embeddings using Inference API"""
+        self.model_name = model_name
+        self.api_token = os.getenv('HUGGINGFACE_API_TOKEN', '')
+        
+        # Check if API token is available
+        if not self.api_token:
+            logger.warning("No HUGGINGFACE_API_TOKEN found. Using fallback embeddings.")
+            self.use_fallback = True
+            self.client = None
+        else:
+            logger.info(f"Using HuggingFace Inference API for embeddings: {model_name}")
+            self.use_fallback = False
+            # Initialize the HuggingFace Inference client
+            try:
+                from huggingface_hub import InferenceClient
+                self.client = InferenceClient(token=self.api_token)
+            except ImportError:
+                logger.warning("huggingface_hub not installed. Using fallback.")
+                self.use_fallback = True
+                self.client = None
+    
+    def encode(self, texts: List[str], show_progress_bar: bool = False) -> np.ndarray:
+        """Encode texts using HuggingFace Inference API"""
+        if self.use_fallback or not self.client:
+            return self._fallback_embeddings(texts)
+        
+        try:
+            embeddings = []
+            
+            # Process texts in small batches to avoid API limits
+            batch_size = 5
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i:i + batch_size]
+                
+                try:
+                    # Use the feature extraction task
+                    batch_embeddings = self.client.feature_extraction(
+                        text=batch,
+                        model=self.model_name
+                    )
+                    
+                    # Handle the response format
+                    if isinstance(batch_embeddings, (list, np.ndarray)):
+                        if isinstance(batch_embeddings, np.ndarray):
+                            # Convert numpy array to list for processing
+                            if batch_embeddings.ndim == 1:
+                                # Single embedding
+                                embeddings.append(batch_embeddings.tolist())
+                            else:
+                                # Multiple embeddings
+                                for embedding in batch_embeddings:
+                                    embeddings.append(embedding.tolist())
+                        else:
+                            # Handle list responses
+                            if len(batch) == 1:
+                                # Single text response might be wrapped
+                                if isinstance(batch_embeddings[0], list) and isinstance(batch_embeddings[0][0], (int, float)):
+                                    embeddings.append(batch_embeddings[0])
+                                else:
+                                    embeddings.extend(batch_embeddings)
+                            else:
+                                # Batch response
+                                embeddings.extend(batch_embeddings)
+                    else:
+                        logger.error(f"Unexpected API response format: {type(batch_embeddings)}")
+                        # Use fallback for unexpected response
+                        fallback_batch = self._fallback_embeddings(batch)
+                        embeddings.extend(fallback_batch)
+                        
+                except Exception as api_error:
+                    logger.warning(f"API error for batch {i}: {api_error}")
+                    # Use fallback for failed batch
+                    fallback_batch = self._fallback_embeddings(batch)
+                    embeddings.extend(fallback_batch)
+            
+            result = np.array(embeddings, dtype=np.float32)
+            logger.info(f"Generated embeddings shape: {result.shape}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error with HuggingFace API: {e}")
+            return self._fallback_embeddings(texts)
+    
+    def _fallback_embeddings(self, texts: List[str]) -> np.ndarray:
+        """Simple fallback embeddings for when API is unavailable"""
+        logger.info("Using fallback embeddings")
+        embeddings = []
+        
+        for text in texts:
+            # Create simple feature-based embeddings
+            words = text.lower().split()
+            features = np.zeros(384, dtype=np.float32)  # Same dimension as all-MiniLM-L6-v2
+            
+            # Basic text features
+            features[0] = len(text) / 1000.0  # Normalized text length
+            features[1] = len(words) / 100.0  # Normalized word count
+            features[2] = len(set(words)) / 100.0  # Normalized unique words
+            
+            # Keyword-based features
+            keywords = {
+                'experience': ['work', 'job', 'company', 'position', 'career', 'wavelet', 'poladrone', 'gunfire'],
+                'education': ['university', 'college', 'degree', 'school', 'education', 'graduation'],
+                'projects': ['project', 'built', 'developed', 'created', 'application', 'system'],
+                'skills': ['python', 'java', 'javascript', 'flask', 'spring', 'aws', 'programming'],
+                'contact': ['email', 'linkedin', 'github', 'contact', 'reach']
+            }
+            
+            idx = 3
+            for category, kwords in keywords.items():
+                for kw in kwords:
+                    if kw in text.lower() and idx < 384:
+                        features[idx] = 1.0
+                    idx += 1
+                    if idx >= 384:
+                        break
+                if idx >= 384:
+                    break
+            
+            # Add some variation to make embeddings more realistic
+            if idx < 300:
+                features[idx:idx+50] = np.random.normal(0, 0.1, 50).astype(np.float32)
+            
+            embeddings.append(features)
+        
+        return np.array(embeddings, dtype=np.float32)
 
 class Document:
     """Represents a single document with content and metadata"""
@@ -211,14 +348,14 @@ class KnowledgeProcessor:
         return documents
 
 class VectorStore:
-    """Manages vector embeddings and similarity search"""
+    """Manages vector embeddings and similarity search using HuggingFace API"""
     
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
         """
-        Initialize vector store with sentence transformer model
+        Initialize vector store with HuggingFace embedding model
         
         Args:
-            model_name: Name of the sentence transformer model
+            model_name: Name of the HuggingFace model
         """
         self.model_name = model_name
         self.encoder = None
@@ -227,9 +364,9 @@ class VectorStore:
         self.embeddings = None
         
     def load_model(self):
-        """Load the sentence transformer model"""
-        logger.info(f"Loading sentence transformer model: {self.model_name}")
-        self.encoder = SentenceTransformer(self.model_name)
+        """Load the HuggingFace embedding model"""
+        logger.info(f"Loading HuggingFace embedding model: {self.model_name}")
+        self.encoder = HuggingFaceEmbeddings(self.model_name)
         
     def create_embeddings(self, documents: List[Document]):
         """Create embeddings for all documents"""
@@ -354,8 +491,8 @@ class RAGChatbot:
         Initialize embedding model and create vector store from knowledge
         """
         try:
-            # Initialize the embedding model
-            self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            # Initialize the HuggingFace embedding model
+            self.embedding_model = HuggingFaceEmbeddings('sentence-transformers/all-MiniLM-L6-v2')
             
             # Create document chunks from all knowledge sources
             documents = []
@@ -611,7 +748,63 @@ Answer based on the context above:"""
     
     def _format_skills_response(self, context: str) -> str:
         """Format skills-related response"""
-        return f"Here are Hamza's technical skills and expertise:\n\n{context}"
+        # Extract technical skills from the context
+        skills_text = self._extract_skills_from_context(context)
+        return f"Based on Hamza's background:\n\n{skills_text}"
+    
+    def _extract_skills_from_context(self, context: str) -> str:
+        """Extract and format technical skills from context"""
+        # Define skill categories and extract them
+        technical_skills = []
+        
+        # Programming languages
+        languages = []
+        if "Python" in context: languages.append("Python")
+        if "Java" in context: languages.append("Java")
+        if "JavaScript" in context: languages.append("JavaScript")
+        if "C++" in context: languages.append("C++")
+        if "C#" in context: languages.append("C#")
+        
+        # Frameworks and libraries
+        frameworks = []
+        if "Flask" in context: frameworks.append("Flask")
+        if "Node.js" in context: frameworks.append("Node.js")
+        if "Angular" in context: frameworks.append("Angular")
+        if "Unity" in context: frameworks.append("Unity")
+        if "PyQt" in context: frameworks.append("PyQt")
+        
+        # Technologies and tools
+        technologies = []
+        if "AWS" in context: technologies.append("AWS")
+        if "MongoDB" in context: technologies.append("MongoDB")
+        if "QGIS" in context: technologies.append("QGIS")
+        if "RESTful API" in context or "REST" in context: technologies.append("RESTful APIs")
+        if "machine learning" in context.lower(): technologies.append("Machine Learning")
+        if "distributed systems" in context.lower(): technologies.append("Distributed Systems")
+        
+        # Build the skills summary
+        skills_summary = "Here are Hamza's key technical skills:\n\n"
+        
+        if languages:
+            skills_summary += f"**Programming Languages:** {', '.join(languages)}\n\n"
+        
+        if frameworks:
+            skills_summary += f"**Frameworks & Libraries:** {', '.join(frameworks)}\n\n"
+        
+        if technologies:
+            skills_summary += f"**Technologies & Specializations:** {', '.join(technologies)}\n\n"
+        
+        # Add experience context
+        skills_summary += "**Professional Experience:**\n"
+        skills_summary += "• Software engineering and API development\n"
+        skills_summary += "• Real-time systems and chat applications\n"
+        skills_summary += "• Database optimization and cloud services\n"
+        skills_summary += "• Game development and UI/UX design\n"
+        skills_summary += "• Network applications and data processing\n\n"
+        
+        skills_summary += "Hamza combines strong technical fundamentals with practical experience in building scalable, high-performance systems across different domains."
+        
+        return skills_summary
     
     def _format_about_response(self) -> str:
         """Format about me/introduction response"""
