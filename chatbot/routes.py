@@ -122,22 +122,26 @@ def initialize():
 
 @chatbot_bp.route('/test', methods=['GET'])
 def test():
-    """Test endpoint to verify knowledge base without full initialization"""
+    """Test endpoint to verify chatbot functionality"""
     try:
-        # Import and test knowledge preparation
-        from chatbot.chatbot_engine import KnowledgeProcessor
+        # Test the actual RAGChatbot that's being used
+        test_chatbot = RAGChatbot()
         
-        processor = KnowledgeProcessor()
-        documents = processor.prepare_knowledge_base()
+        # Count the loaded documents from vector store
+        vector_store = getattr(test_chatbot, 'vector_store', None)
+        if vector_store and hasattr(vector_store, 'embeddings'):
+            total_docs = len(vector_store.embeddings)
+        else:
+            total_docs = 0
         
-        doc_types = {}
-        for doc in documents:
-            doc_types[doc.doc_type] = doc_types.get(doc.doc_type, 0) + 1
+        # Test a simple query
+        test_response = test_chatbot.chat("Hello")
         
         return jsonify({
-            'message': 'Knowledge base test successful',
-            'total_documents': len(documents),
-            'document_types': doc_types,
+            'message': 'Chatbot test successful',
+            'total_documents': total_docs,
+            'test_query': 'Hello',
+            'test_response': test_response[:100] + '...' if len(test_response) > 100 else test_response,
             'status': 'success'
         })
         

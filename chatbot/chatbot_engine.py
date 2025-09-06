@@ -175,177 +175,6 @@ class Document:
         self.metadata = metadata or {}
         self.doc_id = doc_id or str(hash(content))[:10]
         self.doc_type = doc_type or metadata.get('source', 'unknown') if metadata else 'unknown'
-from dataclasses import dataclass
-import logging
-
-# Import knowledge base
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from util.knowledge_base import (
-    get_about_me, get_experience, get_projects, 
-    skills, education, faqs, contacts, personality
-)
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-@dataclass
-class Document:
-    """Represents a document in the knowledge base"""
-    content: str
-    metadata: Dict[str, Any]
-    doc_id: str
-    doc_type: str  # 'about', 'experience', 'project', 'skill', 'education', 'faq'
-
-class KnowledgeProcessor:
-    """Processes and prepares knowledge base for RAG"""
-    
-    def __init__(self):
-        self.documents: List[Document] = []
-        
-    def prepare_knowledge_base(self) -> List[Document]:
-        """Convert knowledge base into documents for RAG"""
-        documents = []
-        
-        # Process about me
-        about_data = get_about_me()
-        documents.append(Document(
-            content=about_data['description'],
-            metadata={'section': 'about_me'},
-            doc_id='about_me_1',
-            doc_type='about'
-        ))
-        
-        # Process experience
-        experiences = get_experience()
-        for i, exp in enumerate(experiences):
-            # Main experience description
-            exp_content = f"Position: {exp['position']} at {exp['company']} ({exp['duration']})\n"
-            exp_content += "\n".join(exp['description'])
-            exp_content += f"\nSkills: {', '.join(exp['skills'])}"
-            
-            documents.append(Document(
-                content=exp_content,
-                metadata={
-                    'section': 'experience',
-                    'company': exp['company'],
-                    'position': exp['position'],
-                    'duration': exp['duration'],
-                    'skills': exp['skills']
-                },
-                doc_id=f'experience_{i}',
-                doc_type='experience'
-            ))
-            
-            # Individual skill documents for better retrieval
-            for skill in exp['skills']:
-                skill_content = f"Skill: {skill}\nUsed at {exp['company']} as {exp['position']}\n"
-                skill_content += f"Context: {' '.join(exp['description'][:2])}"  # First 2 bullet points
-                
-                documents.append(Document(
-                    content=skill_content,
-                    metadata={
-                        'section': 'skill_experience',
-                        'skill': skill,
-                        'company': exp['company'],
-                        'context': 'work_experience'
-                    },
-                    doc_id=f'skill_{skill.lower().replace(" ", "_")}_{i}',
-                    doc_type='skill'
-                ))
-        
-        # Process projects
-        projects = get_projects()
-        for i, project in enumerate(projects):
-            project_content = f"Project: {project['title']}\n"
-            project_content += "\n".join(project['description'])
-            project_content += f"\nTechnologies: {', '.join(project['technologies'])}"
-            project_content += f"\nCategory: {project['category']}"
-            if project.get('githubUrl'):
-                project_content += f"\nGitHub: {project['githubUrl']}"
-            
-            documents.append(Document(
-                content=project_content,
-                metadata={
-                    'section': 'projects',
-                    'title': project['title'],
-                    'technologies': project['technologies'],
-                    'category': project['category'],
-                    'featured': project.get('featured', False)
-                },
-                doc_id=f'project_{i}',
-                doc_type='project'
-            ))
-        
-        # Process skills
-        for category, skill_list in skills.items():
-            skill_content = f"Skill Category: {category.replace('_', ' ').title()}\n"
-            skill_content += f"Skills: {', '.join(skill_list)}"
-            
-            documents.append(Document(
-                content=skill_content,
-                metadata={
-                    'section': 'skills',
-                    'category': category,
-                    'skills': skill_list
-                },
-                doc_id=f'skills_{category}',
-                doc_type='skill'
-            ))
-        
-        # Process education
-        for i, edu in enumerate(education):
-            edu_content = f"Education: {edu['degree']} from {edu['university']}"
-            if 'graduation_year' in edu:
-                edu_content += f" (Class of {edu['graduation_year']})"
-            if 'minor' in edu:
-                edu_content += f"\nMinor: {edu['minor']}"
-            if 'focus' in edu:
-                edu_content += f"\nFocus Areas: {', '.join(edu['focus'])}"
-            if 'achievements' in edu:
-                edu_content += f"\nAchievements: {', '.join(edu['achievements'])}"
-            
-            documents.append(Document(
-                content=edu_content,
-                metadata={
-                    'section': 'education',
-                    'degree': edu['degree'],
-                    'university': edu['university']
-                },
-                doc_id=f'education_{i}',
-                doc_type='education'
-            ))
-        
-        # Process FAQs
-        for i, faq in enumerate(faqs):
-            faq_content = f"Question: {faq['question']}\nAnswer: {faq['answer']}"
-            
-            documents.append(Document(
-                content=faq_content,
-                metadata={
-                    'section': 'faq',
-                    'question': faq['question']
-                },
-                doc_id=f'faq_{i}',
-                doc_type='faq'
-            ))
-        
-        # Process contact information
-        contact_content = "Contact Information:\n"
-        for key, value in contacts.items():
-            contact_content += f"{key.title()}: {value}\n"
-        
-        documents.append(Document(
-            content=contact_content,
-            metadata={'section': 'contact'},
-            doc_id='contact_info',
-            doc_type='contact'
-        ))
-        
-        self.documents = documents
-        logger.info(f"Prepared {len(documents)} documents for knowledge base")
-        return documents
 
 class VectorStore:
     """Manages vector embeddings and similarity search using HuggingFace API"""
@@ -654,6 +483,20 @@ Answer based on the context above:"""
         project_keywords = ['project', 'projects', 'built', 'developed', 'created']
         if any(keyword in user_query_lower for keyword in project_keywords):
             logging.info(f"Handling project request: {user_query}")
+            
+            # Check for technology-specific project requests
+            # Common programming languages and technologies
+            tech_keywords = ['java', 'python', 'javascript', 'react', 'flutter', 'android', 'web', 'mobile', 
+                           'ml', 'ai', 'swing', 'studio', 'angular', 'flask', 'mysql', 'firebase', 'ruby', 
+                           'php', 'nodejs', 'node.js', 'c++', 'c#', 'csharp', 'go', 'rust', 'kotlin', 
+                           'swift', 'vue', 'django', 'spring', 'bootstrap', 'css', 'html', 'typescript',
+                           'mongodb', 'postgresql', 'redis', 'aws', 'docker', 'kubernetes', 'unity']
+            
+            for tech in tech_keywords:
+                if tech in user_query_lower:
+                    logging.info(f"Technology-specific project request for: {tech}")
+                    return self._format_technology_project_response(tech)
+            
             return self._format_project_response()
 
         # Handle education queries first for better routing
@@ -742,11 +585,67 @@ Answer based on the context above:"""
         """Format experience-related response"""
         return f"Here's information about Hamza's professional experience:\n\n{context}"
     
-    def _format_project_response(self, context: str) -> str:
-        """Format project-related response"""
-        return f"Hamza has worked on several interesting projects:\n\n{context}"
+    def _format_project_response(self, context: str = None) -> str:
+        """Format project-related response with intelligent filtering"""
+        return "Here are some of Hamza's key projects:\n\n" + self._get_formatted_projects()
+    
+    def _get_formatted_projects(self, technology_filter: str = None) -> str:
+        """Get formatted project list, optionally filtered by technology"""
+        project_info = []
+        
+        for proj in knowledge_base.projects:
+            title = proj.get('title', 'N/A')
+            description = proj.get('description', [])
+            technologies = proj.get('technologies', [])
+            category = proj.get('category', 'N/A')
+            github_url = proj.get('githubUrl', '')
+            
+            # Apply technology filter if specified
+            if technology_filter:
+                tech_filter_lower = technology_filter.lower()
+                tech_match = any(tech_filter_lower in tech.lower() for tech in technologies)
+                
+                # Also check category for AI/ML related projects
+                if not tech_match and category:
+                    category_match = tech_filter_lower in category.lower()
+                    tech_match = category_match
+                
+                if not tech_match:
+                    continue
+            
+            proj_str = f"• {title} ({category})"
+            if description:
+                proj_str += f"\n  {' '.join(description)}"
+            if technologies:
+                proj_str += f"\n  Technologies: {', '.join(technologies)}"
+            if github_url:
+                proj_str += f"\n  GitHub: {github_url}"
+                
+            project_info.append(proj_str)
+        
+        if not project_info:
+            return f"No projects found using {technology_filter}."
+            
+        return "\n\n".join(project_info)
+    
+    def _format_technology_project_response(self, technology: str) -> str:
+        """Format response for technology-specific project queries"""
+        filtered_projects = self._get_formatted_projects(technology_filter=technology)
+        
+        if f"No projects found using {technology}" in filtered_projects:
+            return f"I don't have any projects specifically using {technology.title()} in my current portfolio. However, here are my main projects:\n\n{self._get_formatted_projects()}"
+        
+        return f"Here are Hamza's projects that use {technology.title()}:\n\n{filtered_projects}"
     
     def _format_skills_response(self, context: str) -> str:
+        """Format skills-related response with better structure"""
+        # Extract skills from knowledge base directly for more accurate response
+        skills_by_category = self._extract_skills_from_context(context)
+        
+        if not skills_by_category:
+            return "Here are Hamza's key technical skills:\n\n" + self._get_formatted_skills()
+            
+        return self._get_formatted_skills()
         """Format skills-related response"""
         # Extract technical skills from the context
         skills_text = self._extract_skills_from_context(context)
