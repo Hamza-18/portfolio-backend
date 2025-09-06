@@ -15,7 +15,7 @@ except ImportError as e:
     CHATBOT_ROUTES_AVAILABLE = False
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "https://hamza-18.github.io"}})
+CORS(app, resources={r"/*": {"origins": "https://hamza-18.github.io"}})
 app.register_blueprint(about_me_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(experience_bp)
