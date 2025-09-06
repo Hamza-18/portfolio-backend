@@ -115,6 +115,30 @@ projects = [
         "demoUrl": "",
         "featured": False,
         "category": "Mobile"
+    },
+    {
+        "id":5,
+        "title": "Portfolio Website",
+        "description": [
+            "Developed a personal portfolio website to showcase my projects and experience.",
+            "Built with Angular for the frontend and Flask for the backend, deployed on Render.",
+            "Implemented a chatbot feature using a Retrieval-Augmented Generation (RAG) model to answer questions about my background and skills."
+        ],
+        "thumbnail": "assets/images/projects/portfolio.png",
+        "technologies": ["Angular", "Flask", "Render", "RAG Chat"],
+        "githubUrl": "https://github.com/Hamza-18/portfolio-backend"
+    },
+    {
+        "id": 6,
+        "title": "Hostel management system",
+        "description": [
+            "Developed a comprehensive hostel management system to streamline operations and improve user experience.",
+        "Built with Java Swing and MySQL, featuring modules for room allocation, fee management, and complaint tracking.",
+        "Implemented role-based access control for admins, staff, and students, enhancing security and usability."
+        ],
+        "thumbnail": "assets/images/projects/hostel-management.png",
+        "technologies": ["Java", "Java Swing", "MySQL"],
+        "githubUrl": "https://github.com/Hamza-18/book-and-bed-management-system"
     }
 ]
 
