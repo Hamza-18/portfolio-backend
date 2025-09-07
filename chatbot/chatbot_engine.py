@@ -699,6 +699,37 @@ Answer based on the context above:"""
             
         return "\n\n".join(project_info)
     
+    def _get_formatted_skills(self) -> str:
+        """Get formatted skills list organized by category"""
+        skills_info = []
+        
+        # Programming Languages
+        if knowledge_base.skills.get('programming_languages'):
+            langs = ', '.join(knowledge_base.skills['programming_languages'])
+            skills_info.append(f"**Programming Languages:** {langs}")
+        
+        # Frameworks & Libraries
+        if knowledge_base.skills.get('frameworks'):
+            frameworks = ', '.join(knowledge_base.skills['frameworks'])
+            skills_info.append(f"**Frameworks & Libraries:** {frameworks}")
+        
+        # Cloud & Infrastructure
+        if knowledge_base.skills.get('cloud'):
+            cloud = ', '.join(knowledge_base.skills['cloud'])
+            skills_info.append(f"**Cloud & Infrastructure:** {cloud}")
+        
+        # Tools & Technologies
+        if knowledge_base.skills.get('tools'):
+            tools = ', '.join(knowledge_base.skills['tools'])
+            skills_info.append(f"**Tools & Technologies:** {tools}")
+        
+        # Concepts & Domains
+        if knowledge_base.skills.get('concepts'):
+            concepts = ', '.join(knowledge_base.skills['concepts'])
+            skills_info.append(f"**Concepts & Domains:** {concepts}")
+        
+        return "\n\n".join(skills_info)
+    
     def _format_technology_project_response(self, technology: str) -> str:
         """Format response for technology-specific project queries"""
         filtered_projects = self._get_formatted_projects(technology_filter=technology)
