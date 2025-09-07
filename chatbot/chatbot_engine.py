@@ -505,8 +505,15 @@ Answer based on the context above:"""
             logging.info(f"Handling education request: {user_query}")
             return self._format_education_response()
 
-        # Handle experience/work queries including company names
+        # Handle experience duration/years questions specifically
         experience_keywords = ['experience', 'work', 'job', 'company', 'internship', 'position', 'career', 'wavelet', 'poladrone', 'gunfire']
+        years_keywords = ['years', 'year', 'duration', 'long', 'much', 'total', 'how many']
+        
+        if any(keyword in user_query_lower for keyword in experience_keywords) and any(year_kw in user_query_lower for year_kw in years_keywords):
+            logging.info(f"Handling years of experience request: {user_query}")
+            return self._format_experience_duration_response()
+
+        # Handle experience/work queries including company names
         if any(keyword in user_query_lower for keyword in experience_keywords):
             logging.info(f"Handling experience request: {user_query}")
             # Retrieve context for experience and use contextual response
@@ -584,6 +591,70 @@ Answer based on the context above:"""
     def _format_experience_response(self, context: str) -> str:
         """Format experience-related response"""
         return f"Here's information about Hamza's professional experience:\n\n{context}"
+    
+    def _format_experience_duration_response(self) -> str:
+        """Format experience duration/years response"""
+        # Calculate total experience from knowledge base
+        from datetime import datetime
+        
+        total_months = 0
+        experience_breakdown = []
+        
+        for exp in knowledge_base.experience:
+            duration = exp.get('duration', '')
+            company = exp.get('company', '')
+            position = exp.get('position', '')
+            
+            # Parse duration strings like "Jul 2021 – Jul 2023" or "Jan 2021 – Mar 2021"
+            if '–' in duration or '-' in duration:
+                try:
+                    # Handle both – and - separators
+                    separator = '–' if '–' in duration else '-'
+                    start_str, end_str = duration.split(separator)
+                    start_str = start_str.strip()
+                    end_str = end_str.strip()
+                    
+                    # Parse dates
+                    start_date = datetime.strptime(start_str, '%b %Y')
+                    end_date = datetime.strptime(end_str, '%b %Y')
+                    
+                    # Calculate months
+                    months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+                    total_months += months
+                    
+                    # Format for display
+                    if months >= 12:
+                        years = months // 12
+                        remaining_months = months % 12
+                        if remaining_months > 0:
+                            duration_text = f"{years} year{'s' if years > 1 else ''} and {remaining_months} month{'s' if remaining_months > 1 else ''}"
+                        else:
+                            duration_text = f"{years} year{'s' if years > 1 else ''}"
+                    else:
+                        duration_text = f"{months} month{'s' if months > 1 else ''}"
+                    
+                    experience_breakdown.append(f"• {company} ({position}): {duration_text}")
+                    
+                except Exception as e:
+                    experience_breakdown.append(f"• {company} ({position}): {duration}")
+                    
+        # Calculate total years and months
+        total_years = total_months // 12
+        remaining_months = total_months % 12
+        
+        if total_years > 0:
+            if remaining_months > 0:
+                total_duration = f"{total_years} year{'s' if total_years > 1 else ''} and {remaining_months} month{'s' if remaining_months > 1 else ''}"
+            else:
+                total_duration = f"{total_years} year{'s' if total_years > 1 else ''}"
+        else:
+            total_duration = f"{remaining_months} month{'s' if remaining_months > 1 else ''}"
+        
+        response = f"Hamza has approximately **{total_duration}** of professional work experience.\n\nHere's the breakdown:\n"
+        response += "\n".join(experience_breakdown)
+        response += f"\n\nThis gives him a solid foundation in software engineering, with experience ranging from game development to enterprise-level API development and cloud infrastructure."
+        
+        return response
     
     def _format_project_response(self, context: str = None) -> str:
         """Format project-related response with intelligent filtering"""
